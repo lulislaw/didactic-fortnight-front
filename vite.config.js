@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': '/src', // если захотите использовать '@/components/…'
+      dedupe: ['react', 'react-dom'],
     },
   },
 });

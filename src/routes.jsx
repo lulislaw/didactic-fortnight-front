@@ -5,7 +5,7 @@ import AppealsList from './pages/AppealsList';
 import AppealCreate from './pages/AppealCreate';
 import AppealDetail from './pages/AppealDetail';
 import NotFound from './pages/NotFound';
-
+import BuildingConstructorPage from "./pages/BuildingConstructorPage.jsx";
 const AppRoutes = () => (
   <Routes>
 
@@ -13,6 +13,7 @@ const AppRoutes = () => (
 
 
     <Route path="/appeals" element={<AppealsList />} />
+    <Route path="/constructor" element={<BuildingConstructorPage />} />
 
     <Route path="/appeals/new" element={<AppealCreate />} />
 
