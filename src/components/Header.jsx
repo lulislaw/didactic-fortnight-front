@@ -34,6 +34,14 @@ const Header = () => {
           >
             Новое обращение
           </Button>
+          <Button
+            component={RouterLink}
+            to="/constructor"
+            color={pathname === '/constructor' ? 'secondary' : 'inherit'}
+            variant={pathname === '/constructor' ? 'outlined' : 'text'}
+          >
+            Конструктор
+          </Button>
         </Box>
       </Toolbar>
     </AppBar>
