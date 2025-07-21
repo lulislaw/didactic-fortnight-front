@@ -1,7 +1,9 @@
 // src/components/constructor/FloorUploader.jsx
-import React, { useRef, useState, useEffect } from 'react';
-import { Button } from '@mui/material';
+import React, {useRef, useState, useEffect} from 'react';
+import {Button, Typography} from '@mui/material';
 import PropTypes from 'prop-types';
+import {uploadFloorPlan, getUploadsFile} from "@/api/images";
+
 
 /**
  * Компонент для загрузки плана этажа в виде кнопки.
@@ -17,7 +19,8 @@ export default function FloorUploader({
                                       }) {
   const fileInputRef = useRef(null);
   const [preview, setPreview] = useState(initialPreview);
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   // при смене этажа или initialPreview — синхронизируем локальный preview
   useEffect(() => {
     setPreview(initialPreview);
@@ -30,36 +33,51 @@ export default function FloorUploader({
     fileInputRef.current?.click();
   };
 
-  const handleChange = e => {
+  const handleChange = async e => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      setPreview(dataUrl);
-      onUpload(dataUrl);
-    };
-    reader.readAsDataURL(file);
+    setLoading(true);
+    setError('');
+    try {
+      const filename = await uploadFloorPlan(file);
+      const url = getUploadsFile(filename)
+      console.log(url)
+      setPreview(url);
+      onUpload(url);
+    } catch (err) {
+      console.error(err);
+      setError('Не удалось загрузить изображение');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleChange}
-        style={{ display: 'none' }}
-      />
-      <Button variant="outlined" onClick={handleClick} fullWidth>
-        {preview ? 'Изменить план этажа' : 'Загрузить план этажа'}
-      </Button>
-    </>
+      <>
+        <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleChange}
+            style={{display: 'none'}}
+        />
+        <Button variant="outlined" onClick={handleClick} fullWidth>
+          {preview ? 'Изменить план этажа' : 'Загрузить план этажа'}
+        </Button>
+        {error && (
+            <Typography variant="caption" color="error" sx={{mt: 1}}>
+              {error}
+            </Typography>
+        )}
+      </>
   );
 }
 
 FloorUploader.propTypes = {
-  onUpload:       PropTypes.func.isRequired,
-  resetKey:       PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+  onUpload: PropTypes.func.isRequired,
+  resetKey: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.number,
+  ]).isRequired,
   initialPreview: PropTypes.string,
 };

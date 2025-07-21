@@ -14,7 +14,7 @@ const Header = () => {
     <AppBar position="static" color="primary">
       <Toolbar>
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Appeals Service
+          Service
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 2 }}>
@@ -41,6 +41,14 @@ const Header = () => {
             variant={pathname === '/constructor' ? 'outlined' : 'text'}
           >
             Конструктор
+          </Button>
+          <Button
+              component={RouterLink}
+              to="/cameras"
+              color={pathname === '/cameras' ? 'secondary' : 'inherit'}
+              variant={pathname === '/cameras' ? 'outlined' : 'text'}
+          >
+            Камеры
           </Button>
         </Box>
       </Toolbar>

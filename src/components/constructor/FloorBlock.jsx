@@ -1,5 +1,6 @@
 import { Group, Line, Text } from 'react-konva';
 import React from 'react';
+import {Typography} from "@mui/material";
 
 function FloorBlock({
                       id,
@@ -13,8 +14,8 @@ function FloorBlock({
                       originX,
                       groupY
                     }) {
-  const strokeColor = isSelected ? '#f00' : isHovered ? '#00f' : '#555';
-  const strokeWidth = isSelected ? 4 : isHovered ? 3 : 2;
+  const strokeColor = isSelected ? '#f55' : isHovered ? '#55f' : '#555';
+  const strokeWidth = isSelected ? 1 : isHovered ? 1 : 1;
   const depth = floorWidth / 4;
   const half = floorWidth / 2;
   const shapeHeight = floorHeight;
@@ -34,9 +35,9 @@ function FloorBlock({
       cursor="pointer"
     >
       <Line points={left} closed stroke={strokeColor} strokeWidth={strokeWidth} fill="#bbb"/>
-      <Line points={right} closed stroke={strokeColor} strokeWidth={strokeWidth} fill="#999"/>
+      <Line points={right} closed stroke={strokeColor} strokeWidth={strokeWidth} fill="#777"/>
       <Line points={top} closed stroke={strokeColor} strokeWidth={strokeWidth} fill="#ddd"/>
-      <Text text={String(id)} x={floorWidth + 10} y={40} fontSize={14} fill="#000"/>
+      <Text text={String(id)} x={floorWidth + 10} y={40} fontSize={14} fill="#002"/>
     </Group>
   );
 }

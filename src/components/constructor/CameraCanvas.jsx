@@ -36,6 +36,7 @@ export default function CameraCanvas({
                                        onCameraDragEnd,
                                        onSelectCamera,
                                        onCameraPropertyChange,
+    scaleCoef,
                                      }) {
   const [bgImage] = useImage(imageSrc);
   const [cameraImg] = useImage(cameraIconSrc);
@@ -135,8 +136,8 @@ export default function CameraCanvas({
                 onCameraDragEnd(cam.id, e.target.x(), e.target.y())
               }
               dragBoundFunc={pos => ({
-                x: Math.max(0, Math.min(pos.x, width - cam.size)),
-                y: Math.max(0, Math.min(pos.y, height - cam.size)),
+                x: Math.max(0, Math.min(pos.x, width - cam.size / (1 / scaleCoef))),
+                y: Math.max(0, Math.min(pos.y, height - cam.size / (1 / scaleCoef))),
               })}
               onMouseEnter={e => {
                 const pos = e.target.getAbsolutePosition();
