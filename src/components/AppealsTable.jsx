@@ -1,4 +1,3 @@
-// src/components/AppealsTable.jsx
 import React from 'react';
 import {
   Table,
@@ -9,20 +8,16 @@ import {
   Chip,
   Typography
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import {useNavigate} from 'react-router-dom';
 import theme from '../theme';
 
-export default function AppealsTable({ data }) {
+export default function AppealsTable({data}) {
   const navigate = useNavigate();
-
-  // Форматируем номер с ведущими нулями
   const formatNumber = (num) => String(num).padStart(7, '0');
-
-  // Настройка отображения статусов
   const statusMap = {
-    new:    { label: 'новое',   color: theme.palette.primary.main },
-    wait:   { label: 'ожидает', color: theme.palette.primary.main },
-    closed: { label: 'закрыто', color: theme.palette.primary.main },
+    new: {label: 'новое', color: theme.palette.primary.main},
+    wait: {label: 'ожидает', color: theme.palette.primary.main},
+    closed: {label: 'закрыто', color: theme.palette.primary.main},
   };
 
   return (
@@ -47,11 +42,10 @@ export default function AppealsTable({ data }) {
                     sx={{
                       cursor: 'pointer',
                       textDecoration: 'none',
-                      '&:hover td': { background: 'rgba(0,0,0,0.04)' }
+                      '&:hover td': {background: 'rgba(0,0,0,0.04)'}
                     }}
                     onClick={() => navigate(`/appeals/${item.id}`)}
                 >
-                  {/* Номер обращения */}
                   <TableCell
                       sx={{
                         fontFamily: 'Roboto Mono, monospace',
@@ -60,28 +54,18 @@ export default function AppealsTable({ data }) {
                   >
                     {formatNumber(item.ticket_number)}
                   </TableCell>
-
-                  {/* Статус */}
                   <TableCell>
                     <Chip
                         label={cfg.label}
                         size="small"
-                        sx={{ bgcolor: cfg.color, color: theme.palette.getContrastText(cfg.color) }}
+                        sx={{bgcolor: cfg.color, color: theme.palette.getContrastText(cfg.color)}}
                     />
                   </TableCell>
-
-                  {/* Дата */}
                   <TableCell>
                     {new Date(item.created_at).toLocaleDateString()}
                   </TableCell>
-
-                  {/* Локация */}
                   <TableCell>{item.location}</TableCell>
-
-                  {/* Описание */}
                   <TableCell>{item.description}</TableCell>
-
-                  {/* Критичность */}
                   <TableCell>{item.severity_name}</TableCell>
                 </TableRow>
             );

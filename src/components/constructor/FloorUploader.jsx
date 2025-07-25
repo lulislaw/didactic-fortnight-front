@@ -1,17 +1,9 @@
-// src/components/constructor/FloorUploader.jsx
 import React, {useRef, useState, useEffect} from 'react';
 import {Button, Typography} from '@mui/material';
 import PropTypes from 'prop-types';
 import {uploadFloorPlan, getUploadsFile} from "@/api/images";
 
 
-/**
- * Компонент для загрузки плана этажа в виде кнопки.
- *
- * onUpload(dataUrl) — колбэк при выборе нового файла
- * resetKey         — ключ для сброса preview при смене этажа
- * initialPreview   — dataUrl уже загруженного плана (или null)
- */
 export default function FloorUploader({
                                         onUpload,
                                         resetKey,
@@ -21,7 +13,6 @@ export default function FloorUploader({
   const [preview, setPreview] = useState(initialPreview);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  // при смене этажа или initialPreview — синхронизируем локальный preview
   useEffect(() => {
     setPreview(initialPreview);
     if (fileInputRef.current) {

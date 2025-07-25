@@ -24,17 +24,40 @@ export default function CameraWorkspace({
                                           onAssignHardware,
                                           maxX,
                                           maxY,
-                                          scaleCoef,
                                         }) {
   if (!camera) return null;
 
+  // вычисляем пиксели из нормированных или старых полей
+  const xPx = camera.xNorm != null ? camera.xNorm * maxX : camera.x ?? 0;
+  const yPx = camera.yNorm != null ? camera.yNorm * maxY : camera.y ?? 0;
+  const maxDim = Math.max(maxX, maxY);
+  const rPx  = camera.viewRadiusNorm != null
+      ? camera.viewRadiusNorm * maxDim
+      : camera.viewRadius ?? 0;
+
   const assigned = camera.assignedZones || [];
 
-  const handleNumberField = field => e => {
-    const v = parseFloat(e.target.value);
-    if (!isNaN(v)) onPropertyChange(camera.id, field, v);
+  const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+  // хендлер для X/Y: приводим к числу, режем в [0…dim], нормализуем
+  const handleNumberField = (fieldNorm, dim) => e => {
+    let vPx = parseFloat(e.target.value);
+    if (!isNaN(vPx)) {
+      vPx = clamp(vPx, 0, dim);
+      onPropertyChange(camera.id, fieldNorm, vPx / dim);
+    }
   };
-  const handleSlider = field => (_, v) => onPropertyChange(camera.id, field, v);
+
+  // хендлер для радиуса
+  const handleRadiusSlider = (_, vPx) => {
+    const rClamped = clamp(vPx, 0, maxDim);
+    onPropertyChange(camera.id, 'viewRadiusNorm', rClamped / maxDim);
+  };
+
+  // хендлер для pivot и угла
+  const handleSimple = field => (_, v) => {
+    onPropertyChange(camera.id, field, v);
+  };
 
   return (
       <Box p={2} sx={{ border: '1px solid #ddd', borderRadius: 1 }}>
@@ -43,64 +66,75 @@ export default function CameraWorkspace({
         </Typography>
 
         <Stack spacing={2}>
-          {/* положение */}
+          {/* Положение X */}
           <TextField
-              label="X (px)" type="number"
-              inputProps={{ min: 0, max: maxX }}
-              value={camera.x} onChange={handleNumberField('x')}
-              size="small" fullWidth
+              label="X (px)"
+              type="number"
+              value={Math.round(xPx)}
+              onChange={handleNumberField('xNorm', maxX)}
+              inputProps={{ min: 0, max: maxX - 15 }}
+              size="small"
+              fullWidth
           />
-          <Typography>X: {(camera.x / scaleCoef).toFixed(1)}</Typography>
 
+          {/* Положение Y */}
           <TextField
-              label="Y (px)" type="number"
-              inputProps={{ min: 0, max: maxY }}
-              value={camera.y} onChange={handleNumberField('y')}
-              size="small" fullWidth
+              label="Y (px)"
+              type="number"
+              value={Math.round(yPx)}
+              onChange={handleNumberField('yNorm', maxY)}
+              inputProps={{ min: 0, max: maxY - 15}}
+              size="small"
+              fullWidth
           />
-          <Typography>Y: {(camera.y / scaleCoef).toFixed(1)}</Typography>
 
-          {/* поворот */}
+          {/* Поворот */}
           <Box>
             <Typography gutterBottom>Поворот (°)</Typography>
             <Slider
                 value={camera.rotation}
-                onChange={handleSlider('rotation')}
-                min={0} max={360} step={1}
+                onChange={handleSimple('rotation')}
+                min={0}
+                max={360}
+                step={1}
                 valueLabelDisplay="auto"
             />
           </Box>
 
-          {/* радиус */}
+          {/* Радиус зоны */}
           <Box>
-            <Typography gutterBottom>Радиус (px)</Typography>
+            <Typography gutterBottom>Радиус зоны (px)</Typography>
             <Slider
-                value={camera.viewRadius}
-                onChange={handleSlider('viewRadius')}
-                min={0} max={500} step={1}
+                value={rPx}
+                onChange={handleRadiusSlider}
+                min={0}
+                max={maxDim}
+                step={1}
                 valueLabelDisplay="auto"
             />
           </Box>
 
-          {/* угол */}
+          {/* Угол зоны */}
           <Box>
             <Typography gutterBottom>Угол (°)</Typography>
             <Slider
                 value={camera.viewAngle}
-                onChange={handleSlider('viewAngle')}
-                min={0} max={360} step={1}
+                onChange={handleSimple('viewAngle')}
+                min={0}
+                max={360}
+                step={1}
                 valueLabelDisplay="auto"
             />
           </Box>
 
-          {/* назначенные зоны */}
+          {/* Назначенные зоны */}
           <FormControl fullWidth size="small">
             <InputLabel>Назначенные зоны</InputLabel>
             <Select
                 multiple
                 value={assigned}
                 onChange={e => onAssignZones(camera.id, e.target.value)}
-                renderValue={v => v.map(id => `#${id}`).join(', ')}
+                renderValue={vals => vals.map(id => `#${id}`).join(', ')}
                 label="Назначенные зоны"
             >
               {zones.map(z => (
@@ -112,7 +146,7 @@ export default function CameraWorkspace({
             </Select>
           </FormControl>
 
-          {/* привязка к реальной камере */}
+          {/* Привязка к «железной» камере */}
           <FormControl fullWidth size="small">
             <InputLabel>Железная камера</InputLabel>
             <Select
@@ -120,7 +154,9 @@ export default function CameraWorkspace({
                 onChange={e => onAssignHardware(camera.id, e.target.value)}
                 label="Железная камера"
             >
-              <MenuItem value=""><em>Не выбрано</em></MenuItem>
+              <MenuItem value="">
+                <em>Не выбрано</em>
+              </MenuItem>
               {hardwareList.map(hw => (
                   <MenuItem key={hw.id} value={hw.id}>
                     {hw.name}
@@ -136,14 +172,16 @@ export default function CameraWorkspace({
 CameraWorkspace.propTypes = {
   camera: PropTypes.shape({
     id: PropTypes.number.isRequired,
-    x: PropTypes.number.isRequired,
-    y: PropTypes.number.isRequired,
+    x: PropTypes.number,
+    y: PropTypes.number,
+    xNorm: PropTypes.number,
+    yNorm: PropTypes.number,
     rotation: PropTypes.number.isRequired,
-    viewRadius: PropTypes.number.isRequired,
+    viewRadius: PropTypes.number,
+    viewRadiusNorm: PropTypes.number,
     viewAngle: PropTypes.number.isRequired,
-    size: PropTypes.number,
     assignedZones: PropTypes.arrayOf(PropTypes.number),
-    hardwareId: PropTypes.string,           // UUID строки
+    hardwareId: PropTypes.string,
   }),
   zones: PropTypes.array.isRequired,
   hardwareList: PropTypes.arrayOf(
@@ -152,7 +190,6 @@ CameraWorkspace.propTypes = {
   onPropertyChange: PropTypes.func.isRequired,
   onAssignZones: PropTypes.func.isRequired,
   onAssignHardware: PropTypes.func.isRequired,
-  maxX: PropTypes.number,
-  maxY: PropTypes.number,
-  scaleCoef: PropTypes.number,
+  maxX: PropTypes.number.isRequired,
+  maxY: PropTypes.number.isRequired,
 };

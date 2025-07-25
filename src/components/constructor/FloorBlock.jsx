@@ -1,6 +1,5 @@
 import { Group, Line, Text } from 'react-konva';
 import React from 'react';
-import {Typography} from "@mui/material";
 
 function FloorBlock({
                       id,
@@ -19,8 +18,6 @@ function FloorBlock({
   const depth = floorWidth / 4;
   const half = floorWidth / 2;
   const shapeHeight = floorHeight;
-
-  // Грани изометрического блока
   const top = [half, 0, floorWidth, depth, half, depth * 2, 0, depth];
   const left = [0, depth, half, depth * 2, half, depth * 2 + floorHeight, 0, depth + floorHeight];
   const right = [floorWidth, depth, half, depth * 2, half, depth * 2 + floorHeight, floorWidth, depth + floorHeight];

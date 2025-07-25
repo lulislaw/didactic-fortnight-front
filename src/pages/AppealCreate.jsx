@@ -1,20 +1,15 @@
-// frontend/src/pages/AppealCreate.jsx
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createAppeal } from '../api/appeals';
-import { fetchAppealTypes, fetchSeverityLevels, fetchAppealStatuses } from '../api/reference';
+import React, {useEffect, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {createAppeal} from '../api/appeals';
+import {fetchAppealTypes, fetchSeverityLevels, fetchAppealStatuses} from '../api/reference';
 import Loader from '../components/Loader';
 
 const AppealCreate = () => {
   const navigate = useNavigate();
-
-  // Справочники
   const [types, setTypes] = useState([]);
   const [severities, setSeverities] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [loadingRefs, setLoadingRefs] = useState(true);
-
-  // Поля формы
   const [typeId, setTypeId] = useState('');
   const [severityId, setSeverityId] = useState('');
   const [statusId, setStatusId] = useState('');
@@ -24,7 +19,6 @@ const AppealCreate = () => {
   const [source, setSource] = useState('');
   const [assignedToId, setAssignedToId] = useState('');
   const [payload, setPayload] = useState('{}');
-
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -80,7 +74,6 @@ const AppealCreate = () => {
 
     try {
       const created = await createAppeal(dto);
-      // Перенаправляем на страницу деталей нового обращения
       navigate(`/appeals/${created.id}`);
     } catch (err) {
       console.error('Ошибка при создании обращения:', err);
@@ -88,129 +81,129 @@ const AppealCreate = () => {
     }
   };
 
-  if (loadingRefs) return <Loader />;
+  if (loadingRefs) return <Loader/>;
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-      <h1>Создать новое обращение</h1>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <label style={styles.label}>
-          Тип обращения<span style={styles.required}>*</span>:
-          <select
-            value={typeId}
-            onChange={(e) => setTypeId(e.target.value)}
-            style={styles.select}
-            required
-          >
-            <option value="">Выберите тип</option>
-            {types.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div style={{maxWidth: '600px', margin: '0 auto'}}>
+        <h1>Создать новое обращение</h1>
+        {error && <p style={{color: 'red'}}>{error}</p>}
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <label style={styles.label}>
+            Тип обращения<span style={styles.required}>*</span>:
+            <select
+                value={typeId}
+                onChange={(e) => setTypeId(e.target.value)}
+                style={styles.select}
+                required
+            >
+              <option value="">Выберите тип</option>
+              {types.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+              ))}
+            </select>
+          </label>
 
-        <label style={styles.label}>
-          Уровень серьёзности<span style={styles.required}>*</span>:
-          <select
-            value={severityId}
-            onChange={(e) => setSeverityId(e.target.value)}
-            style={styles.select}
-            required
-          >
-            <option value="">Выберите уровень</option>
-            {severities.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label style={styles.label}>
+            Уровень серьёзности<span style={styles.required}>*</span>:
+            <select
+                value={severityId}
+                onChange={(e) => setSeverityId(e.target.value)}
+                style={styles.select}
+                required
+            >
+              <option value="">Выберите уровень</option>
+              {severities.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+              ))}
+            </select>
+          </label>
 
-        <label style={styles.label}>
-          Статус<span style={styles.required}>*</span>:
-          <select
-            value={statusId}
-            onChange={(e) => setStatusId(e.target.value)}
-            style={styles.select}
-            required
-          >
-            <option value="">Выберите статус</option>
-            {statuses.map((st) => (
-              <option key={st.id} value={st.id}>
-                {st.name}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label style={styles.label}>
+            Статус<span style={styles.required}>*</span>:
+            <select
+                value={statusId}
+                onChange={(e) => setStatusId(e.target.value)}
+                style={styles.select}
+                required
+            >
+              <option value="">Выберите статус</option>
+              {statuses.map((st) => (
+                  <option key={st.id} value={st.id}>
+                    {st.name}
+                  </option>
+              ))}
+            </select>
+          </label>
 
-        <label style={styles.label}>
-          Локация:
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            style={styles.input}
-          />
-        </label>
+          <label style={styles.label}>
+            Локация:
+            <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                style={styles.input}
+            />
+          </label>
 
-        <label style={styles.label}>
-          Описание:
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            style={styles.textarea}
-          ></textarea>
-        </label>
+          <label style={styles.label}>
+            Описание:
+            <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                style={styles.textarea}
+            ></textarea>
+          </label>
 
-        <label style={styles.label}>
-          Reporter ID (UUID):
-          <input
-            type="text"
-            value={reporterId}
-            onChange={(e) => setReporterId(e.target.value)}
-            style={styles.input}
-          />
-        </label>
+          <label style={styles.label}>
+            Reporter ID (UUID):
+            <input
+                type="text"
+                value={reporterId}
+                onChange={(e) => setReporterId(e.target.value)}
+                style={styles.input}
+            />
+          </label>
 
-        <label style={styles.label}>
-          Source<span style={styles.required}>*</span>:
-          <input
-            type="text"
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            style={styles.input}
-            required
-          />
-        </label>
+          <label style={styles.label}>
+            Source<span style={styles.required}>*</span>:
+            <input
+                type="text"
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                style={styles.input}
+                required
+            />
+          </label>
 
-        <label style={styles.label}>
-          Assigned To ID (UUID):
-          <input
-            type="text"
-            value={assignedToId}
-            onChange={(e) => setAssignedToId(e.target.value)}
-            style={styles.input}
-          />
-        </label>
+          <label style={styles.label}>
+            Assigned To ID (UUID):
+            <input
+                type="text"
+                value={assignedToId}
+                onChange={(e) => setAssignedToId(e.target.value)}
+                style={styles.input}
+            />
+          </label>
 
-        <label style={styles.label}>
-          Payload (JSON):
-          <textarea
-            value={payload}
-            onChange={(e) => setPayload(e.target.value)}
-            style={styles.textarea}
-            rows={4}
-          ></textarea>
-        </label>
+          <label style={styles.label}>
+            Payload (JSON):
+            <textarea
+                value={payload}
+                onChange={(e) => setPayload(e.target.value)}
+                style={styles.textarea}
+                rows={4}
+            ></textarea>
+          </label>
 
-        <button type="submit" style={styles.button}>
-          Создать
-        </button>
-      </form>
-    </div>
+          <button type="submit" style={styles.button}>
+            Создать
+          </button>
+        </form>
+      </div>
   );
 };
 

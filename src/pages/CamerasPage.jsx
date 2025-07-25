@@ -1,4 +1,3 @@
-// src/pages/CameraPage.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
@@ -22,8 +21,6 @@ import {
   createCamera,
   deleteCamera,
 } from '../api/camera_hardware';
-
-/** HLS‑превью */
 function HlsPreview({ url }) {
   const videoRef = useRef();
 

@@ -36,11 +36,11 @@ const Header = () => {
           </Button>
           <Button
             component={RouterLink}
-            to="/constructor"
-            color={pathname === '/constructor' ? 'secondary' : 'inherit'}
-            variant={pathname === '/constructor' ? 'outlined' : 'text'}
+            to="/building"
+            color={pathname === '/building' ? 'secondary' : 'inherit'}
+            variant={pathname === '/building' ? 'outlined' : 'text'}
           >
-            Конструктор
+            Здания
           </Button>
           <Button
               component={RouterLink}

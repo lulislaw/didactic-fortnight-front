@@ -1,5 +1,4 @@
-// src/components/FilterDialog.jsx
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -22,15 +21,12 @@ export default function FilterDialog({
                                        onClose,
                                      }) {
   const [filters, setFilters] = useState(initialFilters);
-
-  // при открытии диалога синхронизируем локальный стейт
   useEffect(() => {
     if (open) {
       setFilters(initialFilters);
     }
   }, [open, initialFilters]);
 
-  // сброс полей внутри диалога
   const handleClear = () => {
     setFilters({
       searchText: '',
@@ -49,7 +45,7 @@ export default function FilterDialog({
               fullWidth
               label="Текст поиска"
               value={filters.searchText}
-              onChange={e => setFilters(f => ({ ...f, searchText: e.target.value }))}
+              onChange={e => setFilters(f => ({...f, searchText: e.target.value}))}
               margin="normal"
           />
 
@@ -58,13 +54,13 @@ export default function FilterDialog({
             <Select
                 multiple
                 value={filters.severities}
-                onChange={e => setFilters(f => ({ ...f, severities: e.target.value }))}
+                onChange={e => setFilters(f => ({...f, severities: e.target.value}))}
                 renderValue={selected => selected.join(', ')}
             >
-              {[1,2,3].map(id => (
+              {[1, 2, 3].map(id => (
                   <MenuItem key={id} value={id}>
-                    <Checkbox checked={filters.severities.includes(id)} />
-                    <ListItemText primary={`Уровень ${id}`} />
+                    <Checkbox checked={filters.severities.includes(id)}/>
+                    <ListItemText primary={`Уровень ${id}`}/>
                   </MenuItem>
               ))}
             </Select>
@@ -74,18 +70,18 @@ export default function FilterDialog({
               fullWidth
               type="date"
               label="С"
-              InputLabelProps={{ shrink: true }}
+              InputLabelProps={{shrink: true}}
               value={filters.dateFrom}
-              onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+              onChange={e => setFilters(f => ({...f, dateFrom: e.target.value}))}
               margin="normal"
           />
           <TextField
               fullWidth
               type="date"
               label="По"
-              InputLabelProps={{ shrink: true }}
+              InputLabelProps={{shrink: true}}
               value={filters.dateTo}
-              onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+              onChange={e => setFilters(f => ({...f, dateTo: e.target.value}))}
               margin="normal"
           />
         </DialogContent>

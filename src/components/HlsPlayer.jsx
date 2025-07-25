@@ -1,4 +1,3 @@
-// src/components/HlsPlayer.jsx
 import React, { useRef, useEffect } from 'react';
 import Hls from 'hls.js';
 import PropTypes from 'prop-types';
@@ -12,8 +11,6 @@ export default function HlsPlayer({ url, controls = true, style }) {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    // Для Safari на десктопе/iOS достаточно присвоить src
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = url;
     } else if (Hls.isSupported()) {

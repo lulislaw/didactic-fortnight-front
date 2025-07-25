@@ -1,11 +1,23 @@
-// src/pages/BuildingConstructorPage.jsx
 import React, {useState, useRef, useEffect} from 'react';
 import {Stage, Layer, Circle} from 'react-konva';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import {
-  Container, Box, Stack, Button, Typography, Divider, useTheme, useMediaQuery,
+  Container,
+  Box,
+  Stack,
+  Button,
+  Typography,
+  useTheme,
+  useMediaQuery,
+  Menu,
+  MenuItem,
+  IconButton,
+  Snackbar,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
-import { getCameras as fetchHardwareCameras } from '@/api/camera_hardware';
+import {getCameras as fetchHardwareCameras} from '@/api/camera_hardware';
 import FloorUploader from '@/components/constructor/FloorUploader.jsx';
 import FloorBlock from '@/components/constructor/FloorBlock.jsx';
 import PlatformBlock from '@/components/constructor/PlatformBlock.jsx';
@@ -15,6 +27,9 @@ import ElementTree from '@/components/constructor/ElementTree.jsx';
 import ZoneWorkspace from '@/components/constructor/ZoneWorkspace.jsx';
 import TextField from '@mui/material/TextField';
 import {getUploadsFile} from "@/api/images";
+import {createConfig, updateConfig, getConfig} from '@/api/building_configs';
+import {useParams, useNavigate} from 'react-router-dom';
+
 export default function BuildingConstructorPage() {
   function useWindowSize() {
     const isClient = typeof window === 'object';
@@ -36,7 +51,11 @@ export default function BuildingConstructorPage() {
     return size;
   }
 
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const {id} = useParams();
+  const isNew = !id;
+  const isEdit = Boolean(id);
   const theme = useTheme();
   const isMdUp = useMediaQuery(theme.breakpoints.up('md'));
   const scrollRef = useRef(null);
@@ -56,63 +75,93 @@ export default function BuildingConstructorPage() {
           ? Math.floor(winH * 0.2)
           : Math.floor(winH * 0.4);
   const canvasSize = winW > 1920 ? 800 : winW > 800 ? 400 : 200;
-  const scaleCoef = canvasSize / MAX_CONTAINER;
   const shapeHeight = floorHeight;
-
-  // счётчики этажей
   const [aboveCount, setAboveCount] = useState(1);
   const [belowCount, setBelowCount] = useState(0);
-  // фоны и камеры
-  const [dataMap, setDataMap] = useState({});       // { floorId: dataUrl }
-  const [camerasMap, setCamerasMap] = useState({}); // { floorId: [camera,…] }
-  const [zonesMap, setZonesMap] = useState({});     // { floorId: [zone,…] }
+  const [dataMap, setDataMap] = useState({});
+  const [camerasMap, setCamerasMap] = useState({});
+  const [zonesMap, setZonesMap] = useState({});
   const [selectedZone, setSelectedZone] = useState(null);
-  // выбранные элементы
   const [selectedFloor, setSelectedFloor] = useState(null);
   const [selectedCamera, setSelectedCamera] = useState(null);
   const [hoveredFloor, setHoveredFloor] = useState(null);
   const [buildingName, setBuildingName] = useState('Новое здание');
-  // сброс прокрутки при смене этажей
+  const [idBuild, setIdBuild] = useState(1);
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [aboveCount, belowCount]);
-
-  // списки этажей
   const negFloors = [];
   for (let i = -belowCount; i < 0; i++) negFloors.push(i);
   const posFloors = [];
   for (let i = 1; i <= aboveCount; i++) posFloors.push(i);
   const allFloors = [...negFloors, ...posFloors].sort((a, b) => b - a);
 
-  // сохранить фон этажа
   const updateFloorSvg = (floorId, dataUrl) => {
     setDataMap(prev => ({...prev, [floorId]: dataUrl}));
   };
   const [hardwareList, setHardwareList] = useState([]);
+  const [configId, setConfigId] = useState(null);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const handleMenuOpen = (e) => setMenuAnchor(e.currentTarget);
+  const handleMenuClose = () => setMenuAnchor(null);
 
-  // после маунта — загрузить hardware‑камеры
+  const handlePublish = async () => {
+    const payloadCreate = {
+      id_build: idBuild,
+      name_build: buildingName,
+      config: {
+        aboveCount,
+        belowCount,
+        backgrounds: dataMap,
+        cameras: camerasMap,
+        zones: zonesMap,
+      },
+    };
+
+    const payloadUpdate = {
+      id_build: idBuild,
+      name_build: buildingName,
+      config: payloadCreate.config,
+    };
+
+    try {
+      let res;
+      if (isEdit) {
+        res = await updateConfig(id, payloadUpdate);
+      } else {
+        res = await createConfig(payloadCreate);
+        navigate(`/constructor/${res.id}`, {replace: true});
+      }
+      alert(`Конфигурация успешно ${isEdit ? 'обновлена' : 'создана'}.`);
+    } catch (err) {
+      console.error('Ошибка публикации:', err.response?.data || err);
+      alert(
+          'Не удалось опубликовать конфигурацию:\n' +
+          JSON.stringify(err.response?.data || err, null, 2)
+      );
+    }
+  };
+
   useEffect(() => {
     fetchHardwareCameras()
         .then(data => setHardwareList(data))
         .catch(err => console.error(err));
   }, []);
 
-  // при выборе hardware‑камеры для плановой камеры
   const handleAssignHardware = (camId, hardwareId) => {
     handleCameraPropertyChange(camId, 'hardwareId', hardwareId);
   };
-  // добавить камеру
   const addCamera = () => {
     if (selectedFloor == null) return;
     const cams = camerasMap[selectedFloor] || [];
     const newCam = {
       id: Date.now(),
-      x: floorWidth / 2 - 12,
-      y: floorHeight / 2 - 12,
+      xNorm: 0.5,
+      yNorm: 0.5,
       rotation: 0,
-      viewRadius: 100,
+      viewRadiusNorm: 0.2,
       viewAngle: 60,
-      size: 24,
+      sizeNorm: 0.03,
       assignedZones: [],
     };
     setCamerasMap(prev => ({
@@ -121,14 +170,15 @@ export default function BuildingConstructorPage() {
     setSelectedCamera(newCam.id);
   };
 
-  // перемещение камеры
-  const updateCameraPos = (camId, x, y) => {
+  const updateCameraPos = (camId, xNorm, yNorm) => {
     setCamerasMap(prev => ({
-      ...prev, [selectedFloor]: (prev[selectedFloor] || []).map(cam => cam.id === camId ? {...cam, x, y} : cam),
+      ...prev,
+      [selectedFloor]: prev[selectedFloor].map(c =>
+          c.id === camId ? {...c, xNorm, yNorm} : c
+      ),
     }));
   };
 
-  // изменение параметров камеры
   const handleCameraPropertyChange = (camId, field, value) => {
     setCamerasMap(prev => ({
       ...prev,
@@ -136,12 +186,11 @@ export default function BuildingConstructorPage() {
     }));
   };
 
-  // текущие камеры и выбранная
   const addZone = () => {
     if (selectedFloor == null) return;
     const zs = zonesMap[selectedFloor] || [];
     const newZone = {
-      id: Date.now(), points: [50, 50, 150, 50, 100, 150], fill: 'rgba(255,0,0,0.2)',
+      id: Date.now(), pointsNorm: [0.1, 0.1, 0.4, 0.1, 0.2, 0.3], fill: 'rgba(255,0,0,0.2)',
     };
     setZonesMap(prev => ({
       ...prev, [selectedFloor]: [...zs, newZone],
@@ -149,33 +198,31 @@ export default function BuildingConstructorPage() {
     setSelectedZone(newZone.id);
   };
 
-  // перетаскивание вершины зоны
-  const handleZonePointDrag = (zoneId, ptIdx, x, y) => {
+  const handleZonePointDrag = (zoneId, ptIdx, xNorm, yNorm) => {
     setZonesMap(prev => ({
-      ...prev, [selectedFloor]: (prev[selectedFloor] || []).map(z => z.id !== zoneId ? z : {
-        ...z, points: z.points.map((v, i) => i === ptIdx * 2 ? x : i === ptIdx * 2 + 1 ? y : v)
-      })
+      ...prev,
+      [selectedFloor]: (prev[selectedFloor] || []).map(z => {
+        if (z.id !== zoneId) return z;
+        const pn = [...(z.pointsNorm || [])];
+        pn[ptIdx * 2] = xNorm;
+        pn[ptIdx * 2 + 1] = yNorm;
+        return {...z, pointsNorm: pn};
+      }),
     }));
   };
-
-  // текущие камеры и выбранная
-
   const cameras = camerasMap[selectedFloor] || [];
   const zones = zonesMap[selectedFloor] || [];
   const currentCamera = selectedFloor != null && selectedCamera != null ? cameras.find(cam => cam.id === selectedCamera) : null;
-  // параметры сцены этажей
   const centerY = aboveCount * shapeHeight + topMargin;
   const stageHeight = (aboveCount + belowCount) * shapeHeight + shapeHeight + topMargin * 2;
   const originX = (containerWidth - floorWidth) / 2;
   const handleExport = () => {
-
     const backgroundsFilenames = Object.fromEntries(
         Object.entries(dataMap).map(([floorId, url]) => {
           const filename = url.split('/').pop();
           return [floorId, filename];
         })
     );
-    // Собираем структуру
     console.log(dataMap)
     const payload = {
       aboveCount, belowCount, backgrounds: backgroundsFilenames, cameras: camerasMap, zones: zonesMap, buildingName,
@@ -189,8 +236,6 @@ export default function BuildingConstructorPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
-
-// Импортируем JSON и заливаем в стейт
   const handleImport = e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -198,7 +243,6 @@ export default function BuildingConstructorPage() {
     reader.onload = () => {
       try {
         const obj = JSON.parse(reader.result);
-        // Раскладываем обратно в стейт
         if (typeof obj.buildingName === 'string') {
           setBuildingName(obj.buildingName);
         }
@@ -222,14 +266,57 @@ export default function BuildingConstructorPage() {
     };
     reader.readAsText(file);
   };
-
+  const importConfigToState = cfg => {
+    if (typeof cfg.buildingName === 'string') setBuildingName(cfg.buildingName);
+    if (typeof cfg.aboveCount === 'number') setAboveCount(cfg.aboveCount);
+    if (typeof cfg.belowCount === 'number') setBelowCount(cfg.belowCount);
+    if (cfg.backgrounds) setDataMap(cfg.backgrounds);
+    if (cfg.cameras) setCamerasMap(cfg.cameras);
+    if (cfg.zones) setZonesMap(cfg.zones);
+  };
+  useEffect(() => {
+    if (isNew) return;
+    setLoading(true);
+    getConfig(id)
+        .then(data => {
+          importConfigToState(data.config);
+          setBuildingName(data.name_build);
+        })
+        .catch(err => {
+          console.error(err);
+          setError('Не удалось загрузить конфигурацию');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+  }, [id, isNew]);
+  if (loading) {
+    return (
+        <Box
+            sx={{
+              width: '100vw', height: '100vh',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+        >
+          <CircularProgress/>
+        </Box>
+    );
+  }
   return (<Container maxWidth={false} disableGutters sx={{p: isMdUp ? 2 : 1}}>
+    <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{vertical: 'bottom', horizontal: 'center'}}
+    >
+      <Alert onClose={() => setError(null)} severity="error" sx={{width: '100%'}}>
+        {error}
+      </Alert>
+    </Snackbar>
     <Stack
         direction={{xs: 'column', md: 'row'}}
         spacing={2}
     >
-      {/* 1) Левая панель (дерево) */}
-
       <Box
           sx={{
             flexShrink: 0,
@@ -244,20 +331,45 @@ export default function BuildingConstructorPage() {
             top: 0,
           }}
       >
-        {/* Импорт/Экспорт */}
-        <Box sx={{my: 2, display: 'flex', justifyContent: 'center', gap: 1}}>
-          <Button variant="outlined" onClick={handleExport}>
-            Экспорт JSON
-          </Button>
-          <Button variant="outlined" component="label">
-            Импорт JSON
-            <input
-                type="file"
-                accept="application/json"
-                hidden
-                onChange={handleImport}
-            />
-          </Button>
+        <Box sx={{my: 2, display: 'flex', justifyContent: 'center'}}>
+          <IconButton onClick={handleMenuOpen}>
+            <Typography>Edit</Typography>
+            <MoreVertIcon/>
+          </IconButton>
+          <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={handleMenuClose}
+          >
+            <MenuItem
+                onClick={() => {
+                  handlePublish();
+                  handleMenuClose();
+                }}
+            >
+              Опубликовать
+            </MenuItem>
+            <MenuItem
+                onClick={() => {
+                  handleExport();
+                  handleMenuClose();
+                }}
+            >
+              Экспорт JSON
+            </MenuItem>
+            <MenuItem component="label">
+              Импорт JSON
+              <input
+                  type="file"
+                  accept="application/json"
+                  hidden
+                  onChange={(e) => {
+                    handleImport(e);
+                    handleMenuClose();
+                  }}
+              />
+            </MenuItem>
+          </Menu>
         </Box>
         <Box sx={{mb: 1, px: 2}}>
           <TextField
@@ -269,8 +381,6 @@ export default function BuildingConstructorPage() {
           />
         </Box>
         <Box sx={{pt: 1, pb: 1, margin: 1, border: '1px solid #ccc',}}>
-
-          {/* Надзем */}
           <Stack direction="row" spacing={0} alignItems="center">
             <Typography sx={{width: 80, ml: 1}}>Надзем</Typography>
             <Typography
@@ -291,11 +401,9 @@ export default function BuildingConstructorPage() {
                   disabled={aboveCount === 1}
                   onClick={() => setAboveCount(v => Math.max(1, v - 1))}
               >–</Button>
-
             </Stack>
           </Stack>
           <Stack spacing={1}>
-            {/* Подзем */}
             <Stack direction="row" spacing={0} alignItems="center">
               <Typography sx={{width: 80, ml: 1}}>Подзем</Typography>
               <Typography
@@ -318,9 +426,7 @@ export default function BuildingConstructorPage() {
                 >–</Button>
               </Stack>
             </Stack>
-
           </Stack>
-
         </Box>
         <ElementTree
             buildingName={buildingName}
@@ -343,14 +449,12 @@ export default function BuildingConstructorPage() {
           sx={{
             flex: 1, display: 'flex', flexDirection: 'column',
           }}>
-
         <Box
             sx={{
-              flex: 1, overflow: 'auto', display: 'flex',                // превращаем Box в flex‑контейнер
-              justifyContent: 'center',      // центрируем по горизонтали
+              flex: 1, overflow: 'auto', display: 'flex',
+              justifyContent: 'center',
               alignItems: 'center',
             }}>
-
           <Box
               ref={scrollRef}
               sx={{
@@ -416,48 +520,31 @@ export default function BuildingConstructorPage() {
                 />))}
               </Layer>
             </Stage>
-
           </Box>
-
         </Box>
-
       </Box>
-      {/* 3) Правая панель: план этажа и загрузка */}
-
-
       {selectedFloor != null && (<>
-
         <Box
             sx={{
-              flex: 1, overflow: 'auto', display: 'flex',                // превращаем Box в flex‑контейнер
-              justifyContent: 'center',      // центрируем по горизонтали
+              flex: 1, overflow: 'auto', display: 'flex',
+              justifyContent: 'center',
               alignItems: 'center',
             }}
         >
           <CameraCanvas
-
               imageSrc={dataMap[selectedFloor]}
-              width={canvasSize}
-              height={canvasSize}
               cameras={cameras}
-              onCameraDragEnd={updateCameraPos}
-              onSelectCamera={setSelectedCamera}
-              onCameraPropertyChange={handleCameraPropertyChange}
-
               zones={zonesMap[selectedFloor] || []}
               selectedZoneId={selectedZone}
               onSelectZone={setSelectedZone}
               onZonePointDrag={handleZonePointDrag}
-              scaleCoef={scaleCoef}
+              onCameraDragEnd={updateCameraPos}
+              onSelectCamera={setSelectedCamera}
+              onCameraPropertyChange={handleCameraPropertyChange}
+              canvasSize={canvasSize}
           />
-
         </Box>
-
-
       </>)}
-
-
-      {/* 4) Правая панель: настройки камеры */}
       <Box
           sx={{
             flexShrink: 0,
@@ -487,10 +574,9 @@ export default function BuildingConstructorPage() {
             Выберите этаж
           </Typography>
         </Box>)}
-
         {selectedFloor != null && (<Box
             sx={{
-              pt: 1, display: 'flex', justifyContent: 'center', gap: 1,          // отступ между кнопками
+              pt: 1, display: 'flex', justifyContent: 'center', gap: 1,
             }}
         >
           <Button
@@ -508,11 +594,10 @@ export default function BuildingConstructorPage() {
             Добавить зону
           </Button>
         </Box>)}
-
         <CameraWorkspace
             camera={currentCamera}
 
-            zones={zonesMap[selectedFloor] || []}               // все зоны этажа
+            zones={zonesMap[selectedFloor] || []}
             onAssignZones={(camId, assignedZones) => {
               setCamerasMap(prev => ({
                 ...prev,
@@ -522,42 +607,68 @@ export default function BuildingConstructorPage() {
             onPropertyChange={handleCameraPropertyChange}
             maxX={canvasSize - (currentCamera?.size || 0)}
             maxY={canvasSize - (currentCamera?.size || 0)}
-            scaleCoef={scaleCoef}
             hardwareList={hardwareList}
             onAssignHardware={handleAssignHardware}
         />
-
-        <Box mt={2}>
-          <ZoneWorkspace
-              zone={zones.find(z => z.id === selectedZone)}
-              onUpdatePoint={(zoneId, idx, axis, value) => {
-                handleZonePointDrag(zoneId, idx, axis === 'x' ? value : zonesMap[selectedFloor].find(z => z.id === zoneId).points[idx * 2], axis === 'y' ? value : zonesMap[selectedFloor].find(z => z.id === zoneId).points[idx * 2 + 1]);
-              }}
-              onAddPoint={zoneId => {
-                setZonesMap(prev => ({
-                  ...prev, [selectedFloor]: prev[selectedFloor].map(z => {
-                    if (z.id !== zoneId) return z;
-                    const pts = z.points;
-                    // координаты между первой и второй
-                    const x0 = pts[0], y0 = pts[1];
-                    const x1 = pts[2], y1 = pts[3];
-                    const mx = (x0 + x1) / 2;
-                    const my = (y0 + y1) / 2;
-                    // вставляем [mx,my] между 0 и 1 индексами
-                    const newPoints = [x0, y0, mx, my, ...pts.slice(2),];
-                    return {...z, points: newPoints};
-                  }),
-                }));
-              }}
-              onRemovePoint={zoneId => {
-                setZonesMap(prev => ({
-                  ...prev, [selectedFloor]: prev[selectedFloor].map(z => z.id !== zoneId ? z : {
-                    ...z, points: z.points.slice(0, -2),
-                  })
-                }));
-              }}
-          />
-        </Box>
+        {selectedZone != null && (() => {
+          const currentZone = zones.find(z => z.id === selectedZone);
+          return currentZone ? (
+              <Box mt={2}>
+                <ZoneWorkspace
+                    zone={currentZone}
+                    onUpdatePoint={(zoneId, idx, axis, value) => {
+                      handleZonePointDrag(
+                          zoneId,
+                          idx,
+                          axis === 'x'
+                              ? value
+                              : zonesMap[selectedFloor].find(z => z.id === zoneId).points[idx * 2],
+                          axis === 'y'
+                              ? value
+                              : zonesMap[selectedFloor].find(z => z.id === zoneId).points[idx * 2 + 1]
+                      );
+                    }}
+                    onAddPoint={zoneId => {
+                      setZonesMap(prev => ({
+                        ...prev,
+                        [selectedFloor]: prev[selectedFloor].map(z => {
+                          if (z.id !== zoneId) return z;
+                          const coords = z.pointsNorm ?? z.points;
+                          const isNorm = !!z.pointsNorm;
+                          const [x0, y0, x1, y1] = coords;
+                          const mx = (x0 + x1) / 2;
+                          const my = (y0 + y1) / 2;
+                          const newCoords = [x0, y0, mx, my, ...coords.slice(2)];
+                          return {
+                            ...z,
+                            ...(isNorm
+                                ? {pointsNorm: newCoords}
+                                : {points: newCoords}),
+                          };
+                        }),
+                      }));
+                    }}
+                    onRemovePoint={zoneId => {
+                      setZonesMap(prev => ({
+                        ...prev,
+                        [selectedFloor]: prev[selectedFloor].map(z => {
+                          if (z.id !== zoneId) return z;
+                          const coords = z.pointsNorm ?? z.points;
+                          const isNorm = !!z.pointsNorm;
+                          const newCoords = coords.slice(0, -2);
+                          return {
+                            ...z,
+                            ...(isNorm
+                                ? {pointsNorm: newCoords}
+                                : {points: newCoords}),
+                          };
+                        }),
+                      }));
+                    }}
+                />
+              </Box>
+          ) : null;
+        })()}
       </Box>
     </Stack>
   </Container>);

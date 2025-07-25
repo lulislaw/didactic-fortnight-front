@@ -1,4 +1,3 @@
-// src/components/FilterBar.jsx
 import React from 'react';
 import {
   Box,
@@ -31,15 +30,12 @@ export default function FilterBar({ tabs, activeTab, onTabChange, onSearch, onAd
               </Button>
           ))}
         </Box>
-
-        {/* Иконка фильтра */}
         <IconButton color="primary" sx={{ mr: 2 }} onClick={onAdvanced}>
           <FilterListIcon />
         </IconButton>
         <IconButton color="primary" sx={{ mr: 2 }} onClick={onClear}>
           <ClearIcon />
         </IconButton>
-        {/* Поле поиска */}
         <TextField
             size="small"
             placeholder="Поиск…"
