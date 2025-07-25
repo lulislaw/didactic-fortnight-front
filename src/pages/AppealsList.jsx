@@ -1,110 +1,147 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { fetchAppeals } from '../api/appeals';
-
-import AppealCard from '../components/AppealCard';
+import React, {useState, useEffect, useRef, useMemo} from 'react';
+import {Container, Typography} from '@mui/material';
+import {fetchAppeals, fetchAppealById} from '../api/appeals';
+import FilterBar from '../components/FilterBar.jsx';
+import FilterDialog from '../components/FilterDialog.jsx';
 import Loader from '../components/Loader';
-import ExportButton from '../components/ExportButton.jsx';
+import ExportButton from '../components/ExportButton';
+import AppealsTable from '../components/AppealsTable.jsx';
 
-const AppealsList = () => {
+const defaultAdvFilters = {
+  searchText: '',
+  severities: [],
+  dateFrom: '',
+  dateTo: '',
+};
+
+export default function AppealsList() {
   const [appeals, setAppeals] = useState([]);
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // базовые фильтры
+  const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  // расширенные
+  const [advFilters, setAdvFilters] = useState(defaultAdvFilters);
+  const [isDialogOpen, setDialogOpen] = useState(false);
 
   const wsRef = useRef(null);
 
+  // ————— Загрузка данных и WS —————
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
+    fetchAppeals(0, 100)
+        .then(data => mounted && setAppeals(data))
+        .catch(() => mounted && setError('Не удалось загрузить список'))
+        .finally(() => mounted && setLoading(false));
 
-    const loadAppeals = async () => {
-      try {
-
-        const data = await fetchAppeals(0, 50);
-
-        if (isMounted) {
-          setAppeals(data);
-        }
-      } catch (err) {
-        console.error('Ошибка загрузки списка:', err);
-        if (isMounted) {
-          setError('Не удалось загрузить список обращений');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadAppeals();
-
-    const ws = new WebSocket('ws://' + import.meta.env.VITE_API_URL + '/ws/appeals');
+    const ws = new WebSocket(
+        `ws://${import.meta.env.VITE_API_URL.replace(/^https?:\/\//, '')}/ws/appeals`
+    );
     wsRef.current = ws;
-
-    ws.onopen = () => {
-      console.log('WebSocket открыт');
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        const { event_type, appeal } = payload;
-
-        setAppeals((prev) => {
-          switch (event_type) {
-            case 'create':
-              if (prev.find((item) => item.id === appeal.id)) {
-                return prev;
-              }
-              return [appeal, ...prev];
-
-            case 'update':
-              return prev.map((item) =>
-                item.id === appeal.id ? { ...item, ...appeal } : item
-              );
-
-            case 'delete':
-              return prev.filter((item) => item.id !== appeal.id);
-
-            default:
-              return prev;
+    ws.onmessage = async ({data}) => {
+      const {event_type, id} = JSON.parse(data);
+      if (event_type === 'delete') {
+        setAppeals(prev => prev.filter(a => a.id !== id));
+      } else {
+        const fresh = await fetchAppealById(id);
+        setAppeals(prev => {
+          if (event_type === 'create' && !prev.some(a => a.id === id)) {
+            return [fresh, ...prev];
           }
+          if (event_type === 'update') {
+            return prev.map(a => a.id === id ? fresh : a);
+          }
+          return prev;
         });
-      } catch (err) {
-        console.error('Не удалось распарсить WebSocket сообщение:', err);
       }
     };
-
-    ws.onerror = (err) => {
-      console.error('WebSocket ошибка:', err);
-    };
-
-    ws.onclose = (event) => {
-      console.log('WebSocket закрылся:', event.code, event.reason);
-    };
-
+    ws.onerror = () => console.error('WebSocket ошибка');
+    ws.onclose = () => console.log('WebSocket закрыт');
     return () => {
-      isMounted = false;
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      mounted = false;
+      ws.close();
     };
   }, []);
 
+  const handleClearAll = () => {
+    setSearch('');
+    setActiveTab('all');
+    setAdvFilters(defaultAdvFilters);
+  };
+
+  const effectiveSearch = advFilters.searchText.trim() !== ''
+      ? advFilters.searchText
+      : search;
+
+  const filteredData = useMemo(() => {
+    return appeals
+        .filter(a => !advFilters.severities.length || advFilters.severities.includes(a.severity_id))
+        .filter(a => {
+          if (!effectiveSearch) return true;
+          const q = effectiveSearch.toLowerCase();
+          return a.location.toLowerCase().includes(q)
+              || (a.description || '').toLowerCase().includes(q)
+              || String(a.ticket_number || a.id).includes(q);
+        })
+        .filter(a => {
+          const dt = new Date(a.created_at);
+          if (advFilters.dateFrom && dt < new Date(advFilters.dateFrom)) return false;
+          if (advFilters.dateTo && dt > new Date(advFilters.dateTo)) return false;
+          return true;
+        });
+  }, [
+    appeals,
+    effectiveSearch,
+    advFilters.severities,
+    advFilters.dateFrom,
+    advFilters.dateTo,
+  ]);
+  const tabs = useMemo(() => [
+    {key: 'all', label: 'Все', count: filteredData.length},
+    {key: 1, label: 'Новые', count: filteredData.filter(a => a.status_id === 1).length},
+    {key: 2, label: 'Ожидает', count: filteredData.filter(a => a.status_id === 2).length},
+    {key: 3, label: 'Закрыто', count: filteredData.filter(a => a.status_id === 3).length},
+  ], [filteredData]);
+  const displayed = useMemo(() => {
+    if (activeTab === 'all') return filteredData;
+    return filteredData.filter(a => a.status_id === activeTab);
+  }, [filteredData, activeTab]);
+
   if (loading) return <Loader/>;
-  if (error) return <div style={{ color: 'red' }}>{error}</div>;
+  if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Список обращений</h1>
-           <ExportButton/>
+      <Container sx={{py: 4}}>
+        <Typography variant="h4" gutterBottom>Список обращений</Typography>
 
-      <div style={{ marginTop: '20px' }}>
-        {appeals.map((appeal) => (
-          <AppealCard key={appeal.id} appeal={appeal}/>
-        ))}
-      </div>
-    </div>
+        <Typography variant="subtitle1" sx={{mb: 2}}>
+          Показано {displayed.length} из {filteredData.length}
+          {displayed.length !== filteredData.length && ' (данные отфильтрованы)'}
+        </Typography>
+
+        <FilterBar
+            tabs={tabs}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            onSearch={setSearch}
+            onAdvanced={() => setDialogOpen(true)}
+            onClear={handleClearAll}
+        />
+
+        <FilterDialog
+            open={isDialogOpen}
+            initialFilters={advFilters}
+            onApply={f => {
+              setAdvFilters(f);
+              setDialogOpen(false);
+            }}
+            onClose={() => setDialogOpen(false)}
+        />
+
+        <ExportButton/>
+        <AppealsTable data={displayed}/>
+      </Container>
   );
-};
-
-export default AppealsList;
+}
