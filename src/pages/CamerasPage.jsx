@@ -14,38 +14,13 @@ import {
   Stack,
 } from '@mui/material';
 import { Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
-import Hls from 'hls.js';
-
+import HlsPreview from "@/components/HlsPreview.jsx";
 import {
   getCameras,
   createCamera,
   deleteCamera,
 } from '../api/camera_hardware';
-function HlsPreview({ url }) {
-  const videoRef = useRef();
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = url;
-    } else if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(url);
-      hls.attachMedia(video);
-      return () => hls.destroy();
-    }
-  }, [url]);
-
-  return (
-      <video
-          ref={videoRef}
-          controls
-          muted
-          style={{ width: '100%', height: '100%', backgroundColor: 'black' }}
-      />
-  );
-}
 
 export default function CamerasPage() {
   const [cameras, setCameras] = useState([]);

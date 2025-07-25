@@ -1,11 +1,15 @@
+// src/pages/AppealsList.jsx
 import React, {useState, useEffect, useRef, useMemo} from 'react';
-import {Container, Typography} from '@mui/material';
+import {Container, Typography, Box} from '@mui/material';
 import {fetchAppeals, fetchAppealById} from '../api/appeals';
 import FilterBar from '../components/FilterBar.jsx';
 import FilterDialog from '../components/FilterDialog.jsx';
 import Loader from '../components/Loader';
 import ExportButton from '../components/ExportButton';
 import AppealsTable from '../components/AppealsTable.jsx';
+import FloorPlanViewer from "../components/FloorPlanViewer.jsx";
+import HardwareStreams from "../components/HardwareStreams.jsx"
+import { getCameras as getHardware } from '@/api/camera_hardware'
 
 const defaultAdvFilters = {
   searchText: '',
@@ -18,8 +22,11 @@ export default function AppealsList() {
   const [appeals, setAppeals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // базовые фильтры
+  const [hardwareList, setHardwareList] = useState([])
+  const [selBuilding, setSelBuilding] = useState(null)
+  const [selFloor, setSelFloor] = useState(null)
+  const [selHardware, setSelHardware] = useState(null);
+  const [camerasOnFloor, setCamerasOnFloor] = useState([]);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   // расширенные
@@ -27,7 +34,9 @@ export default function AppealsList() {
   const [isDialogOpen, setDialogOpen] = useState(false);
 
   const wsRef = useRef(null);
-
+  useEffect(() => {
+    getHardware().then(setHardwareList).catch(console.error)
+  }, [])
   // ————— Загрузка данных и WS —————
   useEffect(() => {
     let mounted = true;
@@ -98,12 +107,14 @@ export default function AppealsList() {
     advFilters.dateFrom,
     advFilters.dateTo,
   ]);
+
   const tabs = useMemo(() => [
     {key: 'all', label: 'Все', count: filteredData.length},
     {key: 1, label: 'Новые', count: filteredData.filter(a => a.status_id === 1).length},
     {key: 2, label: 'Ожидает', count: filteredData.filter(a => a.status_id === 2).length},
     {key: 3, label: 'Закрыто', count: filteredData.filter(a => a.status_id === 3).length},
   ], [filteredData]);
+
   const displayed = useMemo(() => {
     if (activeTab === 'all') return filteredData;
     return filteredData.filter(a => a.status_id === activeTab);
@@ -113,35 +124,103 @@ export default function AppealsList() {
   if (error) return <Typography color="error">{error}</Typography>;
 
   return (
-      <Container sx={{py: 4}}>
-        <Typography variant="h4" gutterBottom>Список обращений</Typography>
-
-        <Typography variant="subtitle1" sx={{mb: 2}}>
-          Показано {displayed.length} из {filteredData.length}
-          {displayed.length !== filteredData.length && ' (данные отфильтрованы)'}
+      <Container sx={{py: 4, px: 0}}>
+        <Typography variant="h4" gutterBottom sx={{px: 2}}>
+          Список обращений
         </Typography>
 
-        <FilterBar
-            tabs={tabs}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onSearch={setSearch}
-            onAdvanced={() => setDialogOpen(true)}
-            onClear={handleClearAll}
-        />
-
-        <FilterDialog
-            open={isDialogOpen}
-            initialFilters={advFilters}
-            onApply={f => {
-              setAdvFilters(f);
-              setDialogOpen(false);
+        {/* flex-контейнер: слева — список, справа — план этажа */}
+        <Box
+            sx={{
+              display: 'flex',
+              flexDirection: {xs: 'column', md: 'row'},
+              height: {md: 'calc(70vh - 100px)'},
             }}
-            onClose={() => setDialogOpen(false)}
-        />
+        >
+          {/* Левая панель */}
+          <Box
+              sx={{
+                flex: 1,
+                px: 2,
+                pb: 2,
 
-        <ExportButton/>
-        <AppealsTable data={displayed}/>
+              }}
+          >
+            <Box
+            sx = {{
+              display:'flex',
+              flexDirection: {xs:'row'},
+              alignItems: 'center',
+            }}>
+              <Typography variant="subtitle1">
+                Показано {displayed.length} из {filteredData.length}
+                {displayed.length !== filteredData.length && ' (отфильтровано)'}
+              </Typography>
+              <Box sx={{my: 2}}>
+                <ExportButton/>
+              </Box>
+            </Box>
+
+
+            <FilterBar
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                onSearch={setSearch}
+                onAdvanced={() => setDialogOpen(true)}
+                onClear={handleClearAll}
+            />
+
+            <FilterDialog
+                open={isDialogOpen}
+                initialFilters={advFilters}
+                onApply={f => {
+                  setAdvFilters(f);
+                  setDialogOpen(false);
+                }}
+                onClose={() => setDialogOpen(false)}
+            />
+
+
+            <Box sx={{
+              height: '100%',
+              overflowY: 'auto',
+              overflowX: 'hidden'
+
+            }}>
+              <AppealsTable data={displayed}/>
+            </Box>
+
+          </Box>
+
+          {/* правая панель */}
+          <Box sx={{ flexShrink:0, width:{ xs:'100%', md:600 }, p:2 }}>
+            <Typography variant="h6">План этажа</Typography>
+            <FloorPlanViewer
+                initialBuildingId={selBuilding}
+                initialFloorId={selFloor}
+                onSelectionChange={(buildingId, floor, cams) => {
+                  setSelBuilding(buildingId);
+                  setSelFloor(floor);
+                  setSelHardware(null);
+                  setCamerasOnFloor(cams);
+                }}
+                onCameraClick={cam => {
+                  setSelHardware(cam.hardwareId)
+                }}
+            />
+
+            <Box mt={2}>
+              <Typography variant="h6">Потоки железных камер</Typography>
+              <HardwareStreams
+                hardwareList={hardwareList}
+                camerasOnFloor={camerasOnFloor}
+                selectedHardwareId={selHardware}
+                onSelectHardware={setSelHardware}
+              />
+            </Box>
+          </Box>
+        </Box>
       </Container>
   );
 }
