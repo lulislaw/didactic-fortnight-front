@@ -8,13 +8,14 @@ import NotFound from './pages/NotFound';
 import CamerasPage from "./pages/CamerasPage.jsx"
 import BuildingListPage from "@/pages/BuildingListPage.jsx";
 import BuildingConstructorPage from "@/pages/BuildingConstructorPage.jsx";
+import AccessControl from "@/pages/AccessControl.jsx";
 
 const AppRoutes = () => (
     <Routes>
 
       <Route path="/" element={<Navigate to="/appeals" replace/>}/>
 
-
+      <Route path="/control" element={<AccessControl/>}/>
       <Route path="/appeals" element={<AppealsList/>}/>
       <Route path="/building" element={<BuildingListPage/>}/>
       <Route path="/constructor" element={<BuildingConstructorPage/>}></Route>
