@@ -64,7 +64,7 @@ export default function FloorPlanViewer({ onSelectionChange, onCameraClick }) {
     if (!config || selectedBuildingId == null || selectedFloor == null) return;
     const cams = config.config.cameras?.[selectedFloor] || [];
     onSelectionChange(selectedBuildingId, selectedFloor, cams);
-  }, [config, selectedBuildingId, selectedFloor, onSelectionChange]);
+  }, [config, selectedBuildingId, selectedFloor]);
 
   if (error) {
     return (
