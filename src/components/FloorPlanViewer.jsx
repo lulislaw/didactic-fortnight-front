@@ -1,4 +1,3 @@
-// src/components/FloorPlanViewer.jsx
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import {
@@ -24,69 +23,48 @@ const cameraIconSrc = `data:image/svg+xml;utf8,${encodeURIComponent(`
   </svg>
 `)}`;
 
-export default function FloorPlanViewer({
-                                          initialBuildingId = null,
-                                          initialFloorId = null,
-                                          onSelectionChange = (buildingId, floor, cameras) => {},
-                                          onCameraClick = () => {},
-                                        }) {
+export default function FloorPlanViewer({ onSelectionChange, onCameraClick }) {
   const [buildings, setBuildings] = useState([]);
-  const [selectedBuildingId, setSelectedBuildingId] = useState(initialBuildingId);
+  const [selectedBuildingId, setSelectedBuildingId] = useState(null);
   const [config, setConfig] = useState(null);
   const [loadingConfig, setLoadingConfig] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedFloor, setSelectedFloor] = useState(initialFloorId);
+  const [selectedFloor, setSelectedFloor] = useState(null);
 
-  // 1) загрузка списка зданий
   useEffect(() => {
     getConfigs()
         .then(data => {
           setBuildings(data);
-          // если не задано initialBuildingId, выбираем первое
-          if (!initialBuildingId && data.length > 0) {
+          if (data.length > 0) {
             setSelectedBuildingId(data[0].id);
           }
         })
         .catch(() => setError('Не удалось загрузить список зданий'));
-  }, [initialBuildingId]);
+  }, []);
 
-  // 2) при смене здания — загрузка конфига
   useEffect(() => {
     if (!selectedBuildingId) return;
     setLoadingConfig(true);
     setError(null);
-
     getConfig(selectedBuildingId)
         .then(cfg => {
           setConfig(cfg);
           const { aboveCount, belowCount } = cfg.config;
-          // строим список этажей
           const floors = [
             ...Array.from({ length: belowCount }, (_, i) => -(belowCount - i)),
             ...Array.from({ length: aboveCount }, (_, i) => i + 1),
           ];
-          // если текущий этаж не в списке — выбираем первый
-          if (!floors.includes(selectedFloor)) {
-            setSelectedFloor(floors[0]);
-          }
+          setSelectedFloor(floors[0]);
         })
         .catch(() => setError('Не удалось загрузить конфигурацию здания'))
         .finally(() => setLoadingConfig(false));
-  }, [selectedBuildingId, selectedFloor]);
+  }, [selectedBuildingId]);
 
-  // вытаскиваем камеры и зоны из конфига
-  const cfg = config?.config || {};
-  const camerasMap = cfg.cameras || {};
-  const zonesMap = cfg.zones || {};
-  const cams = camerasMap[selectedFloor] || [];
-  const zs  = zonesMap[selectedFloor]  || [];
-
-  // уведомляем родителя: здание, этаж и камеру
   useEffect(() => {
-    if (selectedBuildingId != null && selectedFloor != null) {
-      onSelectionChange(selectedBuildingId, selectedFloor, cams);
-    }
-  }, [selectedBuildingId, selectedFloor, cams, onSelectionChange]);
+    if (!config || selectedBuildingId == null || selectedFloor == null) return;
+    const cams = config.config.cameras?.[selectedFloor] || [];
+    onSelectionChange(selectedBuildingId, selectedFloor, cams);
+  }, [config, selectedBuildingId, selectedFloor, onSelectionChange]);
 
   if (error) {
     return (
@@ -103,16 +81,15 @@ export default function FloorPlanViewer({
     );
   }
 
-  const { name_build } = config;
+  const { name_build, config: cfg } = config;
   const bgFilename = cfg.backgrounds?.[selectedFloor];
   const bgUrl = bgFilename ? bgFilename : null;
-
-  // вычисляем размер канваса
   const winW = window.innerWidth;
   const canvasSize = winW > 1920 ? 800 : winW > 800 ? 400 : 200;
 
   return (
       <Container sx={{ py: 4 }}>
+        {/* Выбрать здание и этаж */}
         <Box mb={3} display="flex" gap={2} flexWrap="wrap">
           <FormControl size="small">
             <InputLabel>Здание</InputLabel>
@@ -138,7 +115,7 @@ export default function FloorPlanViewer({
             >
               {[
                 ...Array.from({ length: cfg.belowCount }, (_, i) => -(cfg.belowCount - i)),
-                ...Array.from({ length: cfg.aboveCount }, (_, i) => i + 1)
+                ...Array.from({ length: cfg.aboveCount }, (_, i) => i + 1),
               ].map(f => (
                   <MenuItem key={f} value={f}>
                     {f > 0 ? `+${f}` : f}
@@ -162,8 +139,8 @@ export default function FloorPlanViewer({
         >
           <FloorCanvas
               imageUrl={bgUrl}
-              cameras={cams}
-              zones={zs}
+              cameras={cfg.cameras[selectedFloor] || []}
+              zones={cfg.zones[selectedFloor] || []}
               size={canvasSize}
               onCameraClick={onCameraClick}
           />
@@ -173,13 +150,11 @@ export default function FloorPlanViewer({
 }
 
 FloorPlanViewer.propTypes = {
-  initialBuildingId: PropTypes.string,
-  initialFloorId: PropTypes.number,
-  onSelectionChange: PropTypes.func,
-  onCameraClick: PropTypes.func,
+  onSelectionChange: PropTypes.func.isRequired,
+  onCameraClick: PropTypes.func.isRequired,
 };
 
-// рисует зоны + камеры на Konva
+
 function FloorCanvas({ imageUrl, cameras = [], zones = [], size, onCameraClick }) {
   const [bgImage] = useImage(imageUrl, 'anonymous');
   const [camIcon] = useImage(cameraIconSrc);
@@ -187,33 +162,25 @@ function FloorCanvas({ imageUrl, cameras = [], zones = [], size, onCameraClick }
   return (
       <Stage width={size} height={size} listening>
         <Layer>
-          {/* фон */}
-          {bgImage && (
-              <KonvaImage image={bgImage} x={0} y={0} width={size} height={size} />
-          )}
-
-          {/* зоны */}
+          {bgImage && <KonvaImage image={bgImage} x={0} y={0} width={size} height={size} />}
           {zones.map(z => {
-            // точки могут быть в pixels или нормализованы (<=1)
-            const points = Array.isArray(z.points)
+            const pts = Array.isArray(z.points)
                 ? z.points
                 : Array.isArray(z.pointsNorm)
-                    ? z.pointsNorm.map(v => v <= 1 ? v * size : v)
+                    ? z.pointsNorm.map(v => (v <= 1 ? v * size : v))
                     : [];
+
             return (
-                <React.Fragment key={z.id}>
-                  <Line
-                      points={points}
-                      closed
-                      fill={z.fill || 'rgba(255,0,0,0.2)'}
-                      stroke="gray"
-                      strokeWidth={2}
-                  />
-                </React.Fragment>
+                <Line
+                    key={z.id}
+                    points={pts}
+                    closed
+                    fill={z.fill || 'rgba(255,0,0,0.2)'}
+                    stroke="gray"
+                    strokeWidth={2}
+                />
             );
           })}
-
-          {/* камеры */}
           {cameras.map(cam => {
             const cx = cam.xNorm != null ? cam.xNorm * size : cam.x;
             const cy = cam.yNorm != null ? cam.yNorm * size : cam.y;
@@ -242,6 +209,7 @@ function FloorCanvas({ imageUrl, cameras = [], zones = [], size, onCameraClick }
                       fill="white"
                       stroke="black"
                       strokeWidth={2}
+                      onClick={() => onCameraClick(cam)}
                   />
                   {camIcon && (
                       <KonvaImage
