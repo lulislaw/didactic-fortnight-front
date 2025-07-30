@@ -50,6 +50,14 @@ const Header = () => {
           >
             Камеры
           </Button>
+          <Button
+              component={RouterLink}
+              to="/control"
+              color={pathname === '/control' ? 'secondary' : 'inherit'}
+              variant={pathname === '/control' ? 'outlined' : 'text'}
+          >
+            Роли
+          </Button>
         </Box>
       </Toolbar>
     </AppBar>
